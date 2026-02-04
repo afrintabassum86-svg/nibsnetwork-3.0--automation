@@ -1,0 +1,11 @@
+{
+  "name": "instagram-scraper-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "@supabase/supabase-js": "^2.94.1",
+    "dotenv": "^17.2.3",
+    "playwright": "latest"
+  }
+}
