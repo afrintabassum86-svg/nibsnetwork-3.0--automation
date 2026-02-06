@@ -58,7 +58,7 @@ const InstagramGrid = ({ posts, loading }) => (
         {posts.map((post) => (
           <a
             key={post.id}
-            href={post.blog_url || post.url}
+            href={post.blogUrl || post.url}
             className="grid-card"
             target="_blank"
             rel="noopener noreferrer"
@@ -71,7 +71,7 @@ const InstagramGrid = ({ posts, loading }) => (
               />
             </div>
             <div className="card-overlay">
-              <span className="overlay-text">{post.blog_url ? 'Read Article' : 'View Post'}</span>
+              <span className="overlay-text">{post.blogUrl ? 'Read Article' : 'View Post'}</span>
             </div>
           </a>
         ))}
