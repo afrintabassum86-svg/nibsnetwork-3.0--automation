@@ -22,17 +22,24 @@ async function crawlBlog() {
             const $ = cheerio.load(html);
 
             const articles = [];
-            $('article a[href*="nibsnetwork.com"]').each((i, el) => {
+            // Generic selector: find all links
+            $('a').each((i, el) => {
                 const href = $(el).attr('href');
-                const title = $(el).text().trim() || $(el).find('h2, h3').text().trim();
+                const title = $(el).text().trim() || $(el).find('h2, h3, h4').text().trim();
 
-                if (href && title && href.includes(category)) {
-                    articles.push({
-                        title: title.substring(0, 255),
-                        url: href,
-                        category: category,
-                        slug: href.split('/').filter(Boolean).pop()
-                    });
+                // Validation
+                if (href && title && href.includes(category) && href !== url && href !== `${BLOG_URL}/${category}`) {
+                    // Ensure full URL
+                    const fullUrl = href.startsWith('http') ? href : `${BLOG_URL}${href.startsWith('/') ? '' : '/'}${href}`;
+
+                    if (fullUrl.includes('nibsnetwork.com')) {
+                        articles.push({
+                            title: title.substring(0, 255),
+                            url: fullUrl,
+                            category: category,
+                            slug: fullUrl.split('/').filter(Boolean).pop()
+                        });
+                    }
                 }
             });
 
