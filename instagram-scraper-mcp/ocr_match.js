@@ -47,16 +47,35 @@ async function runAutoMap() {
                 try {
                     process.stdout.write('  Running OCR... ');
                     const { data: { text } } = await Tesseract.recognize(post.image, 'eng');
-                    const ocrText = text.toLowerCase().replace(/[^a-z0-9 ]/g, '');
                     console.log(`Done.`);
-                    // console.log(`  OCR Output: "${ocrText.substring(0, 50)}..."`);
+
+                    // Tokenize OCR text
+                    const ocrTokens = text.toLowerCase()
+                        .replace(/[^a-z0-9\s]/g, '')
+                        .split(/\s+/)
+                        .filter(w => w.length > 3 && !stopWords.has(w));
+
+                    console.log(`  OCR Words: [${ocrTokens.slice(0, 5).join(', ')}...]`);
+
+                    let maxScore = 0;
 
                     for (const article of articles) {
-                        const articleTitle = article.title.toLowerCase().replace(/[^a-z0-9 ]/g, '');
-                        if (articleTitle.length > 10 && ocrText.includes(articleTitle)) {
+                        const articleTokens = article.title.toLowerCase()
+                            .replace(/[^a-z0-9\s]/g, '')
+                            .split(/\s+/)
+                            .filter(w => w.length > 3 && !stopWords.has(w));
+
+                        if (articleTokens.length === 0) continue;
+
+                        // Count matching words
+                        const matches = ocrTokens.filter(w => articleTokens.includes(w));
+                        const score = matches.length;
+
+                        // Threshold: At least 2 significant words match OR >50% of article title words match
+                        if (score > maxScore && (score >= 2 || score / articleTokens.length > 0.5)) {
+                            maxScore = score;
                             bestMatch = article;
-                            matchType = 'OCR Match';
-                            break;
+                            matchType = `OCR Fuzzy Match (${score} words)`;
                         }
                     }
                 } catch (e) {
