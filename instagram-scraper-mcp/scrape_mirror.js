@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { uploadToS3 } from '../lib/s3-helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,29 +16,22 @@ async function scrapeMirror() {
 
     try {
         console.log('Navigating to GreatFon/nibsnetwork...');
-        // GreatFon URL structure might vary, trying generic search or direct
         await page.goto('https://greatfon.com/v/nibsnetwork', { waitUntil: 'domcontentloaded' });
 
-        // Wait for content (generic .content or img)
         await page.waitForTimeout(5000);
 
         const posts = await page.evaluate(() => {
-            // GreatFon structure varies. Look for images in grid
             const images = Array.from(document.querySelectorAll('.content-box img, .grid-item img'));
-
             if (images.length === 0) return [];
-
             return images.map((img, index) => {
                 if (img.width < 100) return null;
-
                 const src = img.src;
                 const alt = img.alt || "Instagram Post";
                 const title = alt.length > 60 ? alt.substring(0, 60) + "..." : alt;
-
                 return {
                     id: `ig-gf-${Date.now()}-${index}`,
                     title: title.replace(/['"]/g, ""),
-                    url: "https://www.instagram.com/nibsnetwork/", // Generic link
+                    url: "https://www.instagram.com/nibsnetwork/",
                     image: src,
                     type: "post"
                 };
@@ -45,10 +39,7 @@ async function scrapeMirror() {
         });
 
         if (posts.length > 0) {
-            console.log(`Found ${posts.length} posts. Downloading...`);
-            const publicPostsDir = path.resolve(__dirname, '../public/posts');
-            if (!fs.existsSync(publicPostsDir)) fs.mkdirSync(publicPostsDir, { recursive: true });
-
+            console.log(`Found ${posts.length} posts. Uploading to S3...`);
             const finalPosts = [];
             for (const post of posts) {
                 try {
@@ -65,11 +56,12 @@ async function scrapeMirror() {
                     }, post.image);
 
                     if (imageBuffer) {
-                        const filename = `${post.id}.jpg`;
-                        const filePath = path.join(publicPostsDir, filename);
-                        fs.writeFileSync(filePath, Buffer.from(imageBuffer, 'base64'));
-                        post.image = `/posts/${filename}`;
-                        finalPosts.push(post);
+                        const filename = `posts/${post.id}.jpg`;
+                        const publicUrl = await uploadToS3(filename, imageBuffer, 'image/jpeg');
+                        if (publicUrl) {
+                            post.image = publicUrl;
+                            finalPosts.push(post);
+                        }
                     }
                 } catch (e) { }
             }
@@ -78,12 +70,9 @@ async function scrapeMirror() {
                 const fileContent = `export const INSTAGRAM_POSTS = ${JSON.stringify(finalPosts, null, 2)};\n`;
                 const outputPath = path.resolve(__dirname, '../src/constants.js');
                 fs.writeFileSync(outputPath, fileContent);
-                console.log(`SUCCESS: Synced ${finalPosts.length} posts.`);
+                console.log(`✓ SUCCESS: Synced ${finalPosts.length} posts to constants.js`);
             }
-        } else {
-            console.log("No posts found on GreatFon.");
         }
-
     } catch (e) {
         console.error("Scrape failed:", e.message);
     } finally {

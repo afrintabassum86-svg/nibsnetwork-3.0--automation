@@ -2,34 +2,28 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { supabase } from '../lib/supabase-admin.js';
+import { query } from '../lib/db.js';
+import { uploadToS3 } from '../lib/s3-helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SESSION_DIR = path.resolve(__dirname, './browser_session');
 
-async function uploadImageToSupabase(id, imageBuffer) {
-    const filename = `${id}.jpg`;
-    const { data, error } = await supabase.storage
-        .from('posts')
-        .upload(filename, Buffer.from(imageBuffer, 'base64'), {
-            contentType: 'image/jpeg',
-            upsert: true
-        });
+async function uploadImage(id, imageBuffer) {
+    const filename = `posts/${id}.jpg`;
+    console.log(`   Uploading ${filename} to S3...`);
 
-    if (error) {
-        console.error(`   Error uploading image ${id}:`, error.message);
+    const publicUrl = await uploadToS3(filename, imageBuffer, 'image/jpeg');
+
+    if (!publicUrl) {
+        console.error(`   Error uploading image ${id} to S3`);
         return null;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-        .from('posts')
-        .getPublicUrl(filename);
 
     return publicUrl;
 }
 
 async function scrapePersistent() {
-    console.log("=== Instagram Scraper (Supabase Edition) ===");
+    console.log("=== Instagram Scraper (AWS Edition) ===");
     console.log("");
 
     if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true });
@@ -64,10 +58,10 @@ async function scrapePersistent() {
 
         if (!loggedIn) return await context.close();
 
-        // Load existing post IDs from Supabase to avoid double work
-        const { data: existingPostsData } = await supabase.from('instagram_posts').select('id');
-        const existingIds = new Set(existingPostsData?.map(p => p.id) || []);
-        console.log(`Loaded ${existingIds.size} existing posts from Supabase.`);
+        // Load existing post IDs from PostgreSQL
+        const existingResult = await query('SELECT id FROM instagram_posts');
+        const existingIds = new Set(existingResult.rows.map(p => p.id));
+        console.log(`Loaded ${existingIds.size} existing posts from database.`);
 
         while (true) {
             const visiblePosts = await page.evaluate(() => {
@@ -82,7 +76,7 @@ async function scrapePersistent() {
                         title: (img.alt || "Instagram Post").substring(0, 100),
                         url: anchor.href,
                         image: img.src,
-                        timestamp: new Date().toISOString(),
+                        timestamp: null,
                         type: match[1] === 'reel' ? 'video' : 'image'
                     };
                 }).filter(Boolean);
@@ -104,16 +98,19 @@ async function scrapePersistent() {
                             }, post.image);
 
                             if (imageBuffer) {
-                                const publicUrl = await uploadImageToSupabase(post.id, imageBuffer);
+                                const publicUrl = await uploadImage(post.id, imageBuffer);
                                 if (publicUrl) {
                                     post.image = publicUrl;
-                                    const { error } = await supabase.from('instagram_posts').insert(post);
-                                    if (!error) {
-                                        existingIds.add(post.id);
-                                        console.log(`   ✓ Saved to Supabase`);
-                                    } else {
-                                        console.error(`   ✗ Supabase Error:`, error.message);
-                                    }
+
+                                    await query(
+                                        `INSERT INTO instagram_posts (id, title, url, image, type, timestamp)
+                                         VALUES ($1, $2, $3, $4, $5, $6)
+                                         ON CONFLICT (id) DO NOTHING`,
+                                        [post.id, post.title, post.url, post.image, post.type, post.timestamp]
+                                    );
+
+                                    existingIds.add(post.id);
+                                    console.log(`   ✓ Saved to PostgreSQL & S3`);
                                 }
                             }
                         } catch (e) {

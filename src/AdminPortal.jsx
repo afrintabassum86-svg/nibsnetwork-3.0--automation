@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabase';
 import {
   Settings,
   Search,
@@ -22,13 +21,14 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ADMIN_EMAIL = 'afrin.tabassum86@gmail.com';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const AdminPortal = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [posts, setPosts] = useState([]);
-  const [filter, setFilter] = useState('all'); // all, mapped, unmapped, automation
+  const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPost, setSelectedPost] = useState(null);
   const [blogArticles, setBlogArticles] = useState([]);
@@ -36,38 +36,20 @@ const AdminPortal = () => {
   const [admins, setAdmins] = useState([ADMIN_EMAIL]);
   const [runningScript, setRunningScript] = useState(null);
   const [scriptLogs, setScriptLogs] = useState('');
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch articles from Supabase
-        const { data: artData, error: artError } = await supabase
-          .from('blog_articles')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (artError) throw artError;
+        // Fetch articles from API (PostgreSQL)
+        const artResponse = await fetch(`${API_URL}/api/articles`);
+        const artData = await artResponse.json();
         setBlogArticles(artData || []);
 
-        // Fetch posts from Supabase
-        const { data: postData, error: postError } = await supabase
-          .from('instagram_posts')
-          .select('*')
-          .order('timestamp', { ascending: false });
+        // Fetch posts from API (PostgreSQL)
+        const postResponse = await fetch(`${API_URL}/api/posts`);
+        const postData = await postResponse.json();
+        setPosts(postData || []);
 
-        if (postError) throw postError;
-
-        // Map to internal format if needed
-        const formattedPosts = (postData || []).map(p => ({
-          id: p.id,
-          title: p.title,
-          url: p.url,
-          image: p.image,
-          type: p.type,
-          blogUrl: p.blog_url,
-          timestamp: p.timestamp
-        }));
-
-        setPosts(formattedPosts);
       } catch (err) {
         console.error('Data fetch failed:', err);
       }
@@ -75,47 +57,64 @@ const AdminPortal = () => {
 
     fetchData();
 
+    // Poll for script status every 2 seconds if something is running
+    const statusInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/script-status`);
+        const data = await res.json();
+        if (data.status === 'running') {
+          setRunningScript(data.script_name || data.script);
+          setScriptLogs(`⌛ Script is running...\n`);
+        } else if (data.status === 'completed' || data.status === 'error') {
+          if (runningScript) {
+            setScriptLogs(prev => prev + (data.output || '') + `\n\n${data.status === 'completed' ? '✅ COMPLETED' : '❌ ERROR'}`);
+            setRunningScript(null);
+          }
+        }
+      } catch (e) { }
+    }, 2000);
+
     const session = localStorage.getItem('nibs_admin');
     if (session === ADMIN_EMAIL || admins.includes(session)) {
       setIsLoggedIn(true);
     }
-  }, []);
+
+    return () => clearInterval(statusInterval);
+  }, [runningScript]);
 
   const saveToDisk = async (updatedPosts) => {
     try {
-      const response = await fetch('http://localhost:3001/api/save-posts', {
+      const response = await fetch(`${API_URL}/api/save-posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ posts: updatedPosts })
       });
       if (!response.ok) throw new Error('Failed to save');
-      console.log('Saved to disk!');
+      console.log('Saved to database!');
     } catch (err) {
-      console.error('Save failed. Make sure "node admin-server.js" is running.');
+      console.error('Save failed:', err);
     }
   };
 
   const runScript = async (scriptName) => {
     if (runningScript) return;
     setRunningScript(scriptName);
-    setScriptLogs(`⌛ Starting ${scriptName}... Please wait for completion.\n`);
+    setScriptLogs(`⌛ Initiating ${scriptName}...\n`);
 
     try {
-      const response = await fetch('http://localhost:3001/api/run-script', {
+      const response = await fetch(`${API_URL}/api/run-script`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ script: scriptName })
       });
       const data = await response.json();
-      setScriptLogs(prev => prev + (data.output || 'No output received.') + '\n\n✅ COMPLETED.');
-
-      // If it's a mapping or sync script, refresh data
-      if (scriptName === 'auto-map' || scriptName === 'sync-insta') {
-        window.location.reload(); // Quickest way to refresh INSTAGRAM_POSTS from disk
+      if (data.success) {
+        setScriptLogs(prev => prev + `✓ Script accepted. Monitoring progress...\n`);
+      } else {
+        throw new Error(data.error || 'Failed to start script');
       }
     } catch (err) {
-      setScriptLogs(prev => prev + `❌ Error: ${err.message}\nMake sure "node admin-server.js" is running.`);
-    } finally {
+      setScriptLogs(prev => prev + `❌ Error: ${err.message}\nMake sure your server is running.`);
       setRunningScript(null);
     }
   };
@@ -139,34 +138,40 @@ const AdminPortal = () => {
     try {
       const cleanTitle = blogTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-      const { error } = await supabase
-        .from('instagram_posts')
-        .update({
-          blog_url: blogUrl,
-          title: cleanTitle
-        })
-        .eq('id', postId);
+      const response = await fetch('http://localhost:3001/api/update-post-mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, blogUrl, title: cleanTitle })
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Server returned status ' + response.status);
+      }
 
       setPosts(posts.map(p => p.id === postId ? { ...p, blogUrl, title: cleanTitle } : p));
       setSelectedPost(null);
     } catch (err) {
-      alert('Failed to map post: ' + err.message);
+      alert('Failed to map post: ' + err.message + '\nCheck terminal logs for admin-server.js.');
     }
   };
 
   const handleManualMap = async (postId, url) => {
     try {
-      const { error } = await supabase
-        .from('instagram_posts')
-        .update({ blog_url: url })
-        .eq('id', postId);
+      const response = await fetch('http://localhost:3001/api/update-post-mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, blogUrl: url })
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Server returned status ' + response.status);
+      }
+
       setPosts(posts.map(p => p.id === postId ? { ...p, blogUrl: url } : p));
     } catch (err) {
-      alert('Failed to update mapping: ' + err.message);
+      alert('Failed to update mapping: ' + err.message + '\nCheck terminal logs for admin-server.js.');
     }
   };
 
@@ -356,7 +361,7 @@ const AdminPortal = () => {
                   <div className="ops-card">
                     <div className="ops-info">
                       <h3>1. Sync Instagram</h3>
-                      <p>Fetch latest posts and download images from Instagram profile.</p>
+                      <p>Main playwright scraper to fetch posts from profile.</p>
                     </div>
                     <button
                       onClick={() => runScript('sync-insta')}
@@ -400,8 +405,53 @@ const AdminPortal = () => {
 
                   <div className="ops-card">
                     <div className="ops-info">
-                      <h3>4. Sync Timestamps</h3>
-                      <p>Fetch real publish dates to ensure perfect chronological order.</p>
+                      <h3>4. Mirror Sync</h3>
+                      <p>Alternative scrapers (GreatFon) to fetch images without login.</p>
+                    </div>
+                    <button
+                      onClick={() => runScript('sync-mirror')}
+                      disabled={runningScript}
+                      className="ops-btn"
+                    >
+                      {runningScript === 'sync-mirror' ? <Loader2 className="spin" /> : <Play size={16} />}
+                      Run Mirror
+                    </button>
+                  </div>
+
+                  <div className="ops-card">
+                    <div className="ops-info">
+                      <h3>5. Graph API Fetch</h3>
+                      <p>Official Instagram API sync (Access Token needed in .env).</p>
+                    </div>
+                    <button
+                      onClick={() => runScript('fetch-api')}
+                      disabled={runningScript}
+                      className="ops-btn"
+                    >
+                      {runningScript === 'fetch-api' ? <Loader2 className="spin" /> : <Play size={16} />}
+                      Run API Fetch
+                    </button>
+                  </div>
+
+                  <div className="ops-card">
+                    <div className="ops-info">
+                      <h3>6. Keywords Mapping</h3>
+                      <p>Hardcoded verification logic to link posts using keywords.</p>
+                    </div>
+                    <button
+                      onClick={() => runScript('full-map')}
+                      disabled={runningScript}
+                      className="ops-btn"
+                    >
+                      {runningScript === 'full-map' ? <Loader2 className="spin" /> : <Play size={16} />}
+                      Run Keywords Map
+                    </button>
+                  </div>
+
+                  <div className="ops-card">
+                    <div className="ops-info">
+                      <h3>7. Sync Timestamps</h3>
+                      <p>Fetch real publish dates for chronological order.</p>
                     </div>
                     <button
                       onClick={() => runScript('sync-time')}
@@ -410,6 +460,21 @@ const AdminPortal = () => {
                     >
                       {runningScript === 'sync-time' ? <Loader2 className="spin" /> : <Play size={16} />}
                       Run Priority Sync
+                    </button>
+                  </div>
+
+                  <div className="ops-card">
+                    <div className="ops-info">
+                      <h3>8. Refresh Captions</h3>
+                      <p>Update Instagram captions for your posts.</p>
+                    </div>
+                    <button
+                      onClick={() => runScript('refresh-caps')}
+                      disabled={runningScript}
+                      className="ops-btn"
+                    >
+                      {runningScript === 'refresh-caps' ? <Loader2 className="spin" /> : <Play size={16} />}
+                      Refresh Captions
                     </button>
                   </div>
                 </div>

@@ -1,27 +1,24 @@
 import { chromium } from 'playwright';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { supabase } from '../lib/supabase-admin.js';
+import { query } from '../lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SESSION_DIR = path.resolve(__dirname, './browser_session');
 
 async function syncTimestamps() {
-    console.log("=== Instagram Timestamp Sync (Supabase Edition) ===");
+    console.log("=== Instagram Timestamp Sync (AWS PostgreSQL Edition) ===");
 
-    // 1. Fetch posts from Supabase that are missing timestamps
-    const { data: posts, error } = await supabase
-        .from('instagram_posts')
-        .select('*')
-        .is('timestamp', null);
-
-    if (error) {
-        console.error("✗ Could not load posts:", error.message);
-        return;
-    }
+    // Fetch posts where timestamp is missing or recent (likely new scrapes)
+    const result = await query(
+        `SELECT * FROM instagram_posts 
+         WHERE timestamp IS NULL 
+         OR timestamp >= NOW() - INTERVAL '7 days'`
+    );
+    const posts = result.rows;
 
     if (!posts || posts.length === 0) {
-        console.log("All posts already have timestamps!");
+        console.log("No posts found that need timestamp verification.");
         return;
     }
 
@@ -29,7 +26,8 @@ async function syncTimestamps() {
     console.log("Launching browser...");
 
     const context = await chromium.launchPersistentContext(SESSION_DIR, {
-        headless: false,
+        headless: true,
+        viewport: { width: 1280, height: 720 }
     });
 
     const page = await context.newPage();
@@ -47,15 +45,12 @@ async function syncTimestamps() {
             });
 
             if (timestamp) {
-                const { error: upError } = await supabase
-                    .from('instagram_posts')
-                    .update({ timestamp })
-                    .eq('id', post.id);
-
-                if (!upError) {
-                    updatedCount++;
-                    console.log(`   ✓ Saved: ${timestamp}`);
-                }
+                await query(
+                    'UPDATE instagram_posts SET timestamp = $1 WHERE id = $2',
+                    [timestamp, post.id]
+                );
+                updatedCount++;
+                console.log(`   ✓ Saved: ${timestamp}`);
             } else {
                 console.log(`   ✗ Timestamp not found on page.`);
             }
@@ -64,7 +59,7 @@ async function syncTimestamps() {
         }
     }
 
-    console.log(`\n=== DONE! Updated ${updatedCount} timestamps in Supabase. ===`);
+    console.log(`\n=== DONE! Updated ${updatedCount} timestamps in PostgreSQL. ===`);
     await context.close();
 }
 

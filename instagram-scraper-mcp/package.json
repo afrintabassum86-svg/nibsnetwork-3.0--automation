@@ -3,9 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.984.0",
+    "@aws-sdk/lib-storage": "^3.984.0",
     "@modelcontextprotocol/sdk": "latest",
     "@supabase/supabase-js": "^2.94.1",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.2.3",
-    "playwright": "latest"
+    "pg": "^8.18.0",
+    "playwright": "latest",
+    "redis": "^5.10.0"
   }
 }

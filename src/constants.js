@@ -239,7 +239,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DUHIb9rjOPL/",
     "image": "/posts/ig-DUHIb9rjOPL.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/technology/beyond-text-how-multimodal-search-and-sonic-branding-are-reshaping-your-brands-future/",
+    "blogUrl": "https://nibsnetwork.com/health/5-surprising-heart-symptoms-you-should-never-ignore-according-to-cardiologists/",
     "timestamp": "2026-01-29T22:31:33.000Z"
   },
   {
@@ -257,7 +257,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DUGKoGsDZU3/",
     "image": "/posts/ig-DUGKoGsDZU3.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/technology/openai-launches-chatgpt-health-to-enhance-personal-health-and-wellness-support/",
+    "blogUrl": "https://nibsnetwork.com/health/salt-the-mineral-you-cant-live-without/",
     "timestamp": "2026-01-29T13:31:27.000Z"
   },
   {
@@ -418,7 +418,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DT3at-dDSsd/",
     "image": "/posts/ig-DT3at-dDSsd.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/technology/apple-picks-googles-gemini-ai-for-siri-upgrade-in-multi-year-partnership/",
+    "blogUrl": "https://nibsnetwork.com/technology/google-now-offers-free-sat-practice-exams-powered-by-gemini/",
     "timestamp": "2026-01-23T20:03:31.000Z"
   },
   {
@@ -580,7 +580,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DTvljeYCmtr/",
     "image": "/posts/ig-DTvljeYCmtr.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/technology/apple-picks-googles-gemini-ai-for-siri-upgrade-in-multi-year-partnership/",
+    "blogUrl": "https://nibsnetwork.com/technology/beginning-with-chatbots-to-colleaguesthe-rise-of-the-autonomous-ai-colleague/",
     "timestamp": "2026-01-20T19:04:16.000Z"
   },
   {
@@ -670,7 +670,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DTsXnDLjF1R/",
     "image": "/posts/ig-DTsXnDLjF1R.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/sports/most-realistic-sports-simulation-games-of-2026/",
+    "blogUrl": "https://nibsnetwork.com/sports/key-sports-events-to-watch-in-2026/",
     "timestamp": "2026-01-19T13:05:41.000Z"
   },
   {
@@ -679,7 +679,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DTsQvMxCvai/",
     "image": "/posts/ig-DTsQvMxCvai.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/technology/the-agentic-revolution/",
+    "blogUrl": "https://nibsnetwork.com/technology/whats-next-for-ai-the-breakthrough-tech-trends-shaping-2026/",
     "timestamp": "2026-01-19T12:04:43.000Z"
   },
   {
@@ -760,7 +760,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DTm5OtpjLWn/",
     "image": "/posts/ig-DTm5OtpjLWn.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/health/healthy-ways-to-reduce-obesity/",
+    "blogUrl": "https://nibsnetwork.com/cuisine/classic-american-comfort-foods-ranked-from-unhealthiest-to-healthiest/",
     "timestamp": "2026-01-17T10:03:01.000Z"
   },
   {
@@ -814,7 +814,7 @@ export const INSTAGRAM_POSTS = [
     "url": "https://www.instagram.com/nibsnetwork/p/DTkpHHcjICz/",
     "image": "/posts/ig-DTkpHHcjICz.jpg",
     "type": "image",
-    "blogUrl": "https://nibsnetwork.com/health/why-green-tea-is-your-secret-weapon-this-season/",
+    "blogUrl": "https://nibsnetwork.com/cuisine/a-fresh-take-in-winter-citrus-salad/",
     "timestamp": "2026-01-16T13:04:03.000Z"
   },
   {

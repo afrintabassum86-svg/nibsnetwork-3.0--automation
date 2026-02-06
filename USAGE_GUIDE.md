@@ -1,91 +1,54 @@
-# Nibs Network - Link-in-Bio System Guide
+# NibsNetwork Automation: User Operating Manual
 
-This system provides a professional Instagram "Link in Bio" dashboard for **nibsnetwork.com**. It automatically syncs Instagram posts, downloads images locally, and uses AI to map them to corresponding blog articles.
+This guide explains how to operate the NibsNetwork Link-in-Bio system.
 
----
+## 🚀 The Platforms We Use
 
-## 🛠 The Mechanism (How it Works)
+Our system is built on a high-availability cloud infrastructure:
 
-The system uses a **Tri-Stage Architecture** to ensure every tile links to the correct article:
-
-1.  **Instagram Sync (Playwright)**: A browser automation tool that scrapes your profile, fetches post metadata (URLs, dates), and downloads images to prevent broken links.
-2.  **Blog Crawler (Fetch/Regex)**: A script that crawls all 200+ articles across your 8 blog categories (`Technology`, `Health`, `Sports`, etc.) to create a local search index.
-3.  **Visual OCR Engine (Tesseract.js)**: An AI engine that "reads" the headlines physically written inside your Instagram images (e.g., "Apple Watch Hypertension") and matches them against the Blog index.
-4.  **Admin Portal (React/Express)**: A web interface allowing you to manually fix any links or headlines that the AI missed.
-
----
-
-## 📅 Daily Workflow (3 Easy Steps)
-
-Follow these steps whenever you post new content on Instagram:
-
-### **Step 1: Sync Instagram Posts**
-Fetch the latest images and posts from your Instagram profile.
-```powershell
-node instagram-scraper-mcp/scrape.js
-```
-*   **What happens**: A browser opens at your profile. 
-*   **Action**: Scroll down until you see all your new posts. 
-*   **Finish**: Close the browser window when done.
-
-### **Step 2: Sync Blog Articles**
-Update the system's knowledge of your website's newest articles.
-```powershell
-node instagram-scraper-mcp/crawl_blog.js
-```
-*   **Wait**: This takes about 30 seconds to fetch all category pages.
-
-### **Step 3: Auto-Map Headlines**
-The "Magic" step. This reads the text in the new images and links them to the blog.
-```powershell
-node instagram-scraper-mcp/ocr_match.js
-```
-
-### **Step 4: Sync Post Timing**
-Ensures all posts are sorted correctly by their actual Instagram publish date.
-```powershell
-node instagram-scraper-mcp/sync_timestamps.js
-```
-*   **Observe**: You will see it "reading" captions and matching them to URLs in the console.
+1.  **Vercel**: The "Front Door" - This is where your public site lives.
+2.  **Supabase**: The "Brain" - A powerful database that stores every post and article.
+3.  **GitHub Actions**: The "Heartbeat" - Automatically runs sync scripts on a schedule.
+4.  **Playwright AI**: The "Eyes" - Scrapes Instagram to see your new content.
+5.  **Tesseract AI**: The "Reader" - Reads headlines inside images to link them automatically.
 
 ---
 
-## 🛡 Admin Portal (Manual Control)
+## 🛠 Operation Manual
 
-For the few posts that the AI cannot read (e.g., very stylistic fonts), use the Admin Portal.
+### 1. Daily Syncing
+The system is designed to be **Zero-Touch**. However, if you want to force a sync immediately after posting to Instagram:
 
-1.  **Start the Admin Server**:
-    ```powershell
-    node admin-server.js
-    ```
-2.  **Open the Portal**:
-    Visit: `http://localhost:5173/admin`
-3.  **Manage**:
-    *   **Login**: Use `afrin.tabassum86@gmail.com`
-    *   **Filter**: Click "Unmapped" to see posts without a blog link.
-    *   **Action**: Click "Manual Map" and paste the correct `nibsnetwork.com` URL.
-    *   **Instant Update**: Changes are saved immediately and reflect on the main site.
+1.  Open your **Admin Portal** (`/admin`).
+2.  Click the **"Sync Instagram"** button. This will start the scraper.
+3.  Once finished, click **"Sync Blog"**. This fetches your latest articles.
+4.  Click **"Auto-Map"**. The AI will scan the images and link them.
 
----
+### 2. Manual Mapping (Handling Exceptions)
+Sometimes your Instagram images might use a font the AI can't read perfectly. In these cases:
 
-## 📦 Required Dependencies
+1.  Go to the **"Unmapped"** tab in the Admin Portal.
+2.  Find the new post.
+3.  Click **"Manage Link"**.
+4.  Paste the URL of the article from `nibsnetwork.com` that matches this post.
+5.  Click **"Save"**. The change is live instantly.
 
-The project is now optimized. You only need:
-
-| Dependency | Purpose |
-| :--- | :--- |
-| `react` / `vite` | Core web application. |
-| `playwright` | Instagram scraping (browser automation). |
-| `tesseract.js` | AI for reading headlines from images (OCR). |
-| `express` / `cors` | The background server that allows the Admin Portal to save files. |
-| `react-router-dom` | Navigation between Bio page and Admin page. |
-| `lucide-react` | Icons for the Admin dashboard. |
-| `framer-motion` | Smooth animations. |
+### 3. Monitoring
+You can monitor the health of the system via the **Output Log** at the bottom of the Admin Portal. It will show you exactly what the AI is "reading" and linking in real-time.
 
 ---
 
-## 🚀 Deployment / Development
-*   **Run Site**: `npm run dev` (Site will be at port 5173)
-*   **Stop Systems**: Press `Ctrl + C` in the terminals.
+## ❓ Frequently Asked Questions
 
-**Support Contact**: Ziaur-786 (Developer)
+**Q: Where do the images come from?**
+A: We download them from Instagram and store them in **Supabase Storage**. This means if Instagram is down, your Link-in-Bio still works perfectly.
+
+**Q: How often does it sync automatically?**
+A: Typically once every 6 hours via GitHub Actions, but you can trigger it manually anytime.
+
+**Q: What if I want to change the look of the site?**
+A: The design is managed via standard CSS. Contact the tech team for styling updates.
+
+---
+**Technical Support**: Ziaur-786
+**Project**: NibsNetwork Blogsite Automation
