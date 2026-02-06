@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { uploadToS3 } from '../lib/s3-helper.js';
+import pool, { query } from '../lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -67,16 +68,24 @@ async function scrapeMirror() {
             }
 
             if (finalPosts.length > 0) {
-                const fileContent = `export const INSTAGRAM_POSTS = ${JSON.stringify(finalPosts, null, 2)};\n`;
-                const outputPath = path.resolve(__dirname, '../src/constants.js');
-                fs.writeFileSync(outputPath, fileContent);
-                console.log(`✓ SUCCESS: Synced ${finalPosts.length} posts to constants.js`);
+                console.log(`Found ${finalPosts.length} posts. Saving to database...`);
+
+                for (const post of finalPosts) {
+                    await query(
+                        `INSERT INTO instagram_posts (id, title, url, image, type, timestamp)
+                         VALUES ($1, $2, $3, $4, $5, NOW())
+                         ON CONFLICT (id) DO NOTHING`,
+                        [post.id, post.title, post.url, post.image, post.type]
+                    );
+                }
+                console.log(`✓ SUCCESS: Synced ${finalPosts.length} posts to PostgreSQL`);
             }
         }
     } catch (e) {
         console.error("Scrape failed:", e.message);
     } finally {
         await browser.close();
+        if (typeof pool !== 'undefined') await pool.end();
     }
 }
 

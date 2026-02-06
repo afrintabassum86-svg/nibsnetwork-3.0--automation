@@ -160,7 +160,7 @@ app.post('/api/run-script', async (req, res) => {
     let command = '';
 
     switch (script) {
-        case 'sync-insta': command = 'node instagram-scraper-mcp/scrape.js'; break;
+        case 'sync-insta': command = 'node instagram-scraper-mcp/scrape_mirror.js'; break; // Use mirror scraper on server
         case 'sync-blog': command = 'node instagram-scraper-mcp/crawl_blog.js'; break;
         case 'auto-map': command = 'node instagram-scraper-mcp/ocr_match.js'; break;
         case 'sync-time': command = 'node instagram-scraper-mcp/sync_timestamps.js'; break;
