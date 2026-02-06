@@ -7,8 +7,26 @@ import pool, { query } from '../lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const MIRRORS = [
+    {
+        name: 'Dumpoir',
+        url: 'https://dumpoir.com/v/nibsnetwork',
+        selector: '.content-box img, .grid-item img, .card-img-top'
+    },
+    {
+        name: 'Instanavigation',
+        url: 'https://instanavigation.com/user-profile/nibsnetwork',
+        selector: '.posts-grid img, .profile-posts img, img[src*="instagram"], img[src*="cdn"]'
+    },
+    {
+        name: 'Imginn',
+        url: 'https://imginn.com/nibsnetwork/',
+        selector: '.items .item img, .post-items .item img'
+    }
+];
+
 async function scrapeMirror() {
-    console.log("Launching browser to scrape Imginn (Stealth Mode)...");
+    console.log("Launching browser for Multi-Mirror Scrape...");
     const browser = await chromium.launch({
         headless: true,
         args: [
@@ -18,60 +36,77 @@ async function scrapeMirror() {
             '--disable-infobars',
             '--window-position=0,0',
             '--ignore-certificate-errors',
-            '--ignore-certificate-errors-spki-list',
             '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         ],
         ignoreDefaultArgs: ['--enable-automation']
     });
 
-    const context = await browser.newContext({
-        locale: 'en-US',
-        timezoneId: 'Asia/Kolkata',
-    });
-
+    const context = await browser.newContext({ locale: 'en-US' });
     const page = await context.newPage();
+    let posts = [];
 
     try {
-        console.log('Navigating to Imginn/nibsnetwork...');
-        // Try Imginn or similar mirror
-        await page.goto('https://imginn.com/nibsnetwork/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        for (const mirror of MIRRORS) {
+            console.log(`\n--- Trying Mirror: ${mirror.name} ---`);
+            try {
+                await page.goto(mirror.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+                await page.waitForTimeout(5000);
 
-        await page.waitForTimeout(5000);
+                // Check for Cloudflare/Blocking
+                const title = await page.title();
+                if (title.includes('Just a moment') || title.includes('Attention Required')) {
+                    console.log(`  Blocked by Cloudflare (${title}). Skipping...`);
+                    continue;
+                }
 
-        // Imginn selector strategy
-        const posts = await page.evaluate(() => {
-            const items = Array.from(document.querySelectorAll('.items .item, .post-items .item'));
-            if (items.length === 0) return [];
+                posts = await page.evaluate((sel) => {
+                    const items = Array.from(document.querySelectorAll(sel));
+                    return items.map((img, index) => {
+                        if (!img || img.width < 100) return null;
 
-            return items.map((item, index) => {
-                const img = item.querySelector('img');
-                const captionEl = item.querySelector('.caption, .desc');
-                if (!img || img.width < 100) return null;
+                        const src = img.src || img.getAttribute('data-src');
+                        // Try to find caption in parent/siblings
+                        let el = img;
+                        let caption = img.alt || "";
+                        // Traverse up 3 levels to find text
+                        for (let i = 0; i < 3; i++) {
+                            if (el.parentElement) {
+                                el = el.parentElement;
+                                const textEl = el.innerText;
+                                if (textEl && textEl.length > caption.length) caption = textEl;
+                            }
+                        }
 
-                const src = img.src || img.getAttribute('data-src');
-                const alt = (captionEl ? captionEl.innerText : img.alt) || "Instagram Post";
-                const title = alt.length > 200 ? alt.substring(0, 200) + "..." : alt;
+                        const finalCaption = (caption || "Instagram Post").replace(/\n/g, " ").trim();
+                        const title = finalCaption.length > 200 ? finalCaption.substring(0, 200) + "..." : finalCaption;
 
-                return {
-                    id: `ig-imginn-${Date.now()}-${index}`,
-                    title: title.replace(/['"]/g, ""),
-                    url: "https://www.instagram.com/nibsnetwork/",
-                    image: src,
-                    type: "post"
-                };
-            }).filter(Boolean);
-        });
+                        return {
+                            id: `ig-${Date.now()}-${index}`,
+                            title: title.replace(/['"]/g, ""),
+                            url: "https://www.instagram.com/nibsnetwork/",
+                            image: src,
+                            type: "post"
+                        };
+                    }).filter(Boolean);
+                }, mirror.selector);
+
+                if (posts.length > 0) {
+                    console.log(`  ✅ Success! Found ${posts.length} posts on ${mirror.name}.`);
+                    break; // Stop if we found posts
+                } else {
+                    console.log(`  ❌ No posts found on ${mirror.name} (Selector mismatch?).`);
+                }
+            } catch (e) {
+                console.log(`  ❌ Error scraping ${mirror.name}: ${e.message}`);
+            }
+        }
 
         if (posts.length === 0) {
-            console.error("❌ No posts found! Selectors might have changed or site is blocking.");
-            // Print page content snippet for debugging
-            const content = await page.content();
-            console.log("Page snippet:", content.substring(0, 500));
+            console.error("\n❌ ALL MIRRORS FAILED. No posts found.");
         } else {
-            console.log(`Found ${posts.length} posts. Uploading to S3...`);
+            console.log(`\nProcessing ${posts.length} posts...`);
             const finalPosts = [];
             for (const post of posts) {
-                // ... same upload logic ...
                 try {
                     const imageBuffer = await page.evaluate(async (imgUrl) => {
                         try {
@@ -94,6 +129,7 @@ async function scrapeMirror() {
                         }
                     } else {
                         // Fallback: Use original URL if fetch fails
+                        post.image = post.image; // Keep original
                         finalPosts.push(post);
                     }
                 } catch (e) { }
@@ -114,7 +150,7 @@ async function scrapeMirror() {
         }
 
     } catch (e) {
-        console.error("Scrape failed:", e.message);
+        console.error("Scrape Critical Fail:", e.message);
     } finally {
         await browser.close();
         if (typeof pool !== 'undefined') await pool.end();
