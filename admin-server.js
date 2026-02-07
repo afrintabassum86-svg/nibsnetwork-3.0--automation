@@ -14,6 +14,9 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Serve static files from the React app build
+app.use(express.static(path.join(__dirname, 'dist')));
+
 app.get('/api/ping', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
 // API to save mappings back to PostgreSQL
@@ -152,6 +155,20 @@ app.get('/api/script-status', async (req, res) => {
     }
 });
 
+// Script Status API - polled by frontend to check if script is done
+app.get('/api/script-status', async (req, res) => {
+    try {
+        const result = await query('SELECT * FROM script_status WHERE id = 1');
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.json({ status: 'idle', script_name: null });
+        }
+    } catch (err) {
+        res.json({ status: 'idle', script_name: null, error: err.message });
+    }
+});
+
 // Automation Scripts Execution
 const { exec } = await import('child_process');
 
@@ -160,15 +177,17 @@ app.post('/api/run-script', async (req, res) => {
     let command = '';
 
     switch (script) {
-        case 'sync-insta': command = 'node instagram-scraper-mcp/scrape_mirror.js'; break; // Use mirror scraper on server
-        case 'sync-blog': command = 'node instagram-scraper-mcp/crawl_blog.js'; break;
-        case 'auto-map': command = 'node instagram-scraper-mcp/ocr_match.js'; break;
-        case 'sync-time': command = 'node instagram-scraper-mcp/sync_timestamps.js'; break;
-        case 'sync-mirror': command = 'node instagram-scraper-mcp/scrape_mirror.js'; break;
-        case 'fetch-api': command = 'node instagram-scraper-mcp/fetch_api.js'; break;
-        case 'full-map': command = 'node instagram-scraper-mcp/map_to_blog.js'; break;
-        case 'refresh-caps': command = 'node instagram-scraper-mcp/refresh_captions.js'; break;
-        default: return res.status(400).json({ error: 'Invalid script' });
+        case 'sync-insta':
+        case 'fetch-api':
+            command = 'node instagram-scraper-mcp/fetch_api.js';
+            break;
+        case 'sync-blog':
+            command = 'node instagram-scraper-mcp/crawl_blog.js';
+            break;
+        case 'auto-map':
+            command = 'node instagram-scraper-mcp/ocr_match.js';
+            break;
+        default: return res.status(400).json({ error: 'Unknown script. Available: sync-insta, sync-blog, auto-map' });
     }
 
     console.log(`[Admin] Executing: ${command}`);
@@ -198,7 +217,15 @@ app.post('/api/run-script', async (req, res) => {
     res.json({ success: true, message: 'Script started' });
 });
 
+// All other GET requests serve the React app
+app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+        return res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    }
+    next();
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Admin Server running at http://localhost:${PORT}`);
+    console.log(`\n🚀 Admin Server running at http://0.0.0.0:${PORT}`);
     console.log(`Database: AWS RDS PostgreSQL\n`);
 });

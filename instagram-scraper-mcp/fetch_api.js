@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import https from 'https';
 import { uploadToS3 } from '../lib/s3-helper.js';
+import pool, { query } from '../lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -49,26 +50,29 @@ async function run() {
     }
 
     try {
-        console.log("Fetching connected Instagram ID...");
-        const pagesUrl = `${GRAPH_URL}/me/accounts?fields=name,instagram_business_account{id,username}&access_token=${ACCESS_TOKEN}`;
-        const pagesData = await fetchJson(pagesUrl);
+        let instagramId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
-        let instagramId = null;
-        let foundUsername = "";
+        if (!instagramId) {
+            console.log("Fetching connected Instagram ID from Pages...");
+            const pagesUrl = `${GRAPH_URL}/me/accounts?fields=name,instagram_business_account{id,username}&access_token=${ACCESS_TOKEN}`;
+            const pagesData = await fetchJson(pagesUrl);
 
-        for (const page of pagesData.data || []) {
-            if (page.instagram_business_account) {
-                instagramId = page.instagram_business_account.id;
-                foundUsername = page.instagram_business_account.username;
-                console.log(`Found Instagram ID: ${instagramId} (Username: @${foundUsername})`);
-                if (foundUsername.toLowerCase() === 'nibsnetwork') break;
+            for (const page of pagesData.data || []) {
+                if (page.instagram_business_account) {
+                    instagramId = page.instagram_business_account.id;
+                    const foundUsername = page.instagram_business_account.username;
+                    console.log(`Found Instagram ID: ${instagramId} (Username: @${foundUsername})`);
+                    if (foundUsername.toLowerCase() === 'nibsnetwork') break;
+                }
             }
         }
 
         if (!instagramId) {
-            console.error("No linked Instagram Business Account found.");
+            console.error("Error: INSTAGRAM_BUSINESS_ACCOUNT_ID not found in .env and couldn't find linked account via API.");
             return;
         }
+
+        console.log(`Using Instagram Business ID: ${instagramId}`);
 
         console.log("Fetching Media...");
         const mediaUrl = `${GRAPH_URL}/${instagramId}/media?fields=id,caption,media_type,media_url,permalink,thumbnail_url,timestamp&limit=50&access_token=${ACCESS_TOKEN}`;
@@ -111,13 +115,30 @@ async function run() {
         }
 
         if (processedPosts.length > 0) {
+            console.log(`Saving ${processedPosts.length} posts to PostgreSQL...`);
+            for (const post of processedPosts) {
+                await query(
+                    `INSERT INTO instagram_posts (id, title, url, image, type, timestamp)
+                     VALUES ($1, $2, $3, $4, $5, $6)
+                     ON CONFLICT (id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        url = EXCLUDED.url,
+                        image = EXCLUDED.image,
+                        type = EXCLUDED.type,
+                        timestamp = EXCLUDED.timestamp`,
+                    [post.id, post.title, post.url, post.image, post.type, post.timestamp]
+                );
+            }
+
             const fileContent = `export const INSTAGRAM_POSTS = ${JSON.stringify(processedPosts, null, 2)};\n`;
             const outputPath = path.resolve(__dirname, '../src/constants.js');
             fs.writeFileSync(outputPath, fileContent);
-            console.log(`SUCCESS: Updated constants.js and S3 storage with ${processedPosts.length} posts.`);
+            console.log(`SUCCESS: Updated PostgreSQL, constants.js, and S3 storage with ${processedPosts.length} posts.`);
         }
     } catch (error) {
         console.error("API Error:", error.message);
+    } finally {
+        if (typeof pool !== 'undefined') await pool.end();
     }
 }
 

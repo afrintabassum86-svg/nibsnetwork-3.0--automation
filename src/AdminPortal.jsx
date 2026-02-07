@@ -138,7 +138,7 @@ const AdminPortal = () => {
     try {
       const cleanTitle = blogTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-      const response = await fetch('http://localhost:3001/api/update-post-mapping', {
+      const response = await fetch(`${API_URL}/api/update-post-mapping`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ postId, blogUrl, title: cleanTitle })
@@ -158,7 +158,7 @@ const AdminPortal = () => {
 
   const handleManualMap = async (postId, url) => {
     try {
-      const response = await fetch('http://localhost:3001/api/update-post-mapping', {
+      const response = await fetch(`${API_URL}/api/update-post-mapping`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ postId, blogUrl: url })
@@ -298,7 +298,7 @@ const AdminPortal = () => {
               <div className="header-actions">
                 <div className="cloud-status">
                   <CheckCircle2 size={16} color="#10b981" />
-                  <span>Live Supabase Cloud Sync</span>
+                  <span>Live AWS RDS Cloud Sync</span>
                 </div>
               </div>
             </div>
@@ -373,110 +373,6 @@ const AdminPortal = () => {
                     </button>
                   </div>
 
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>2. Sync Blog</h3>
-                      <p>Crawl nibsnetwork.com for latest published articles.</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('sync-blog')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'sync-blog' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Run Crawl
-                    </button>
-                  </div>
-
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>3. Auto-Map (OCR)</h3>
-                      <p>Use AI to read headlines from images and link to blog.</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('auto-map')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'auto-map' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Run Auto-Map
-                    </button>
-                  </div>
-
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>4. Mirror Sync</h3>
-                      <p>Alternative scrapers (GreatFon) to fetch images without login.</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('sync-mirror')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'sync-mirror' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Run Mirror
-                    </button>
-                  </div>
-
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>5. Graph API Fetch</h3>
-                      <p>Official Instagram API sync (Access Token needed in .env).</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('fetch-api')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'fetch-api' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Run API Fetch
-                    </button>
-                  </div>
-
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>6. Keywords Mapping</h3>
-                      <p>Hardcoded verification logic to link posts using keywords.</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('full-map')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'full-map' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Run Keywords Map
-                    </button>
-                  </div>
-
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>7. Sync Timestamps</h3>
-                      <p>Fetch real publish dates for chronological order.</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('sync-time')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'sync-time' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Run Priority Sync
-                    </button>
-                  </div>
-
-                  <div className="ops-card">
-                    <div className="ops-info">
-                      <h3>8. Refresh Captions</h3>
-                      <p>Update Instagram captions for your posts.</p>
-                    </div>
-                    <button
-                      onClick={() => runScript('refresh-caps')}
-                      disabled={runningScript}
-                      className="ops-btn"
-                    >
-                      {runningScript === 'refresh-caps' ? <Loader2 className="spin" /> : <Play size={16} />}
-                      Refresh Captions
-                    </button>
-                  </div>
                 </div>
 
                 <div className="console-output">
