@@ -21,7 +21,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ADMIN_EMAIL = 'afrin.tabassum86@gmail.com';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const AdminPortal = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
