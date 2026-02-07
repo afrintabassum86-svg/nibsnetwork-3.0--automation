@@ -9,6 +9,10 @@ const SESSION_DIR = path.resolve(__dirname, './browser_session');
 async function syncTimestamps() {
     console.log("=== Instagram Timestamp Sync (AWS PostgreSQL Edition) ===");
 
+    // Check how many are already good
+    const stats = await query("SELECT COUNT(*) as count FROM instagram_posts WHERE timestamp IS NOT NULL");
+    const validCount = stats.rows[0].count;
+
     // Fetch posts where timestamp is missing or recent (likely new scrapes)
     const result = await query(
         `SELECT * FROM instagram_posts 
@@ -18,7 +22,8 @@ async function syncTimestamps() {
     const posts = result.rows;
 
     if (!posts || posts.length === 0) {
-        console.log("No posts found that need timestamp verification.");
+        console.log(`✅ All ${validCount} posts utilize valid timestamps.`);
+        console.log("No missing or unstable timestamps found that require browser verification.");
         return;
     }
 
