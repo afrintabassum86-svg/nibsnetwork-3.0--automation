@@ -21,6 +21,7 @@
     "@aws-sdk/client-sts": "^3.984.0",
     "@aws-sdk/lib-storage": "^3.984.0",
     "body-parser": "^2.2.2",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
