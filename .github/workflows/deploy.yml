@@ -33,7 +33,19 @@ jobs:
         echo "DATABASE_USER=${{ secrets.DATABASE_USER }}" >> .env
         echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
         echo "PORT=3001" >> .env
-        # Add other secrets as needed
+        
+        # AWS Secrets
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+        echo "AWS_REGION=ap-south-1" >> .env
+        echo "S3_BUCKET_NAME=nibsnetwork-images" >> .env
+        
+        # Instagram Secrets
+        echo "INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}" >> .env
+        echo "INSTAGRAM_BUSINESS_ACCOUNT_ID=${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}" >> .env
+        
+        # Frontend Config (Needed for build)
+        echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env
 
     - name: Build Frontend
       run: npm run build
