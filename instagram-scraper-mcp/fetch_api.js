@@ -9,8 +9,8 @@ import pool, { query } from '../lib/db.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
-const GRAPH_URL = 'https://graph.facebook.com/v19.0';
+const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN ? process.env.INSTAGRAM_ACCESS_TOKEN.trim() : null;
+const GRAPH_URL = 'https://graph.facebook.com/v21.0';
 
 async function fetchJson(url) {
     try {
@@ -50,7 +50,7 @@ async function run() {
     }
 
     try {
-        let instagramId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+        let instagramId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID.trim() : null;
 
         if (!instagramId) {
             console.log("Fetching connected Instagram ID from Pages...");
