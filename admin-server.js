@@ -110,7 +110,7 @@ app.post('/api/update-post-mapping', async (req, res) => {
 app.get('/api/articles', async (req, res) => {
     try {
         const result = await query(
-            'SELECT title, url, category, slug FROM blog_articles ORDER BY created_at DESC'
+            'SELECT title, url, category FROM blog_articles ORDER BY created_at DESC'
         );
         res.json(result.rows);
     } catch (e) {
