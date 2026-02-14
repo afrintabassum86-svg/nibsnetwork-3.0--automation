@@ -104,11 +104,13 @@ async function crawl() {
                 image TEXT,
                 category TEXT,
                 description TEXT,
+                slug TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             );
             ALTER TABLE blog_articles ADD COLUMN IF NOT EXISTS image TEXT;
             ALTER TABLE blog_articles ADD COLUMN IF NOT EXISTS description TEXT;
             ALTER TABLE blog_articles ADD COLUMN IF NOT EXISTS category TEXT;
+            ALTER TABLE blog_articles ADD COLUMN IF NOT EXISTS slug TEXT;
         `);
         console.log('✓ Database Schema Verified');
     } catch (err) {
@@ -139,11 +141,17 @@ async function crawl() {
                 // Scrape
                 const article = await scrapeArticle(url);
                 if (article && article.title) {
+                    // Extract slug from URL
+                    // Example: https://nibsnetwork.com/category/slug/
+                    // Remove trailing slash if exists
+                    const cleanUrl = article.url.endsWith('/') ? article.url.slice(0, -1) : article.url;
+                    const slug = cleanUrl.split('/').pop();
+
                     await pool.query(
-                        `INSERT INTO blog_articles (title, url, image, category, description, created_at)
-                         VALUES ($1, $2, $3, $4, $5, NOW())
+                        `INSERT INTO blog_articles (title, url, image, category, description, slug, created_at)
+                         VALUES ($1, $2, $3, $4, $5, $6, NOW())
                          ON CONFLICT (url) DO NOTHING`,
-                        [article.title, article.url, article.image, article.category, article.description]
+                        [article.title, article.url, article.image, article.category, article.description, slug]
                     );
                     const duration = Date.now() - start;
                     // console.log(`Saved: ${article.title.substring(0, 30)}... (${duration}ms)`);
